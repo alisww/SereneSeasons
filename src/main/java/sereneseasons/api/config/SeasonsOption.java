@@ -11,9 +11,11 @@ public enum SeasonsOption implements ISyncedOption
 {
     DAY_DURATION("Day Duration"),
     SUB_SEASON_DURATION("Sub Season Duration"),
-    STARTING_SUB_SEASON("Starting Sub Season"),
-    PROGRESS_SEASON_WHILE_OFFLINE("Progress Season While Offline");
-    
+    STARTING_SUB_SEASON("Staring Sub Season"),
+    NUM_PATCHES_PER_TICK("Chunk patches per tick"),
+    PATCH_TICK_DISTANCE("Ticks between patches"),
+    ENABLE_GLOBAL_FROST("Enable Global Frost");
+
     private final String optionName;
 
     SeasonsOption(String name)

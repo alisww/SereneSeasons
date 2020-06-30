@@ -7,11 +7,14 @@
  ******************************************************************************/
 package sereneseasons.api.season;
 
-public enum Season 
+import net.minecraft.util.IStringSerializable;
+import sereneseasons.season.SeasonTime;
+
+public enum Season implements IStringSerializable
 {
     SPRING, SUMMER, AUTUMN, WINTER;
 
-    public enum SubSeason implements ISeasonColorProvider
+    public enum SubSeason implements ISeasonColorProvider, IStringSerializable
     {
         EARLY_SPRING(SPRING, 0x778087, 0.85F, 0x6F818F, 0.85F, 0x869A68),
         MID_SPRING(SPRING, 0x6F818F, 0x5F849F, 0x7EA271),
@@ -25,9 +28,7 @@ public enum Season
         EARLY_WINTER(WINTER, 0xAF4F4F, 0.60F, 0xDB3030, 0.60F, 0xB1723B),
         MID_WINTER(WINTER, 0xAF4F4F, 0.45F, 0xDB3030, 0.45F, 0xA0824D),
         LATE_WINTER(WINTER, 0x8E8181, 0.60F, 0xA57070, 0.60F, 0x8F925F);
-
-        public static final SubSeason[] VALUES = SubSeason.values();
-
+        
         private Season season;
         private int grassOverlay;
         private float grassSaturationMultiplier;
@@ -48,6 +49,11 @@ public enum Season
         SubSeason(Season season, int grassColour, int foliageColour, int birchColor)
         {
             this(season, grassColour, -1, foliageColour, -1, birchColor);
+        }
+        
+        public ISeasonState getDefaultState()
+        {
+        	return new SeasonTime(this);
         }
         
         public Season getSeason()
@@ -79,9 +85,14 @@ public enum Season
         {
             return this.birchColor;
         }
+
+		@Override
+		public String getName() {
+			return toString().toLowerCase();
+		}
     }
 
-    public enum TropicalSeason implements ISeasonColorProvider
+    public enum TropicalSeason implements ISeasonColorProvider, IStringSerializable
     {
         EARLY_DRY(0xFFFFFF, 0xFFFFFF, 0x80A755),
         MID_DRY(0xA58668, 0.8F, 0xB7867C, 0.95F, 0x98A54B),
@@ -89,8 +100,6 @@ public enum Season
         EARLY_WET(0x758C8A, 0x728C91, 0x80A755),
         MID_WET(0x548384, 0x2498AE, 0x76AC6C),
         LATE_WET(0x658989, 0x4E8893, 0x80A755);
-
-        public static final TropicalSeason[] VALUES = TropicalSeason.values();
 
         private int grassOverlay;
         private float grassSaturationMultiplier;
@@ -136,5 +145,15 @@ public enum Season
         {
             return this.birchColor;
         }
+
+		@Override
+		public String getName() {
+			return toString().toLowerCase();
+		}
     }
+
+	@Override
+	public String getName() {
+		return toString().toLowerCase();
+	}
 }

@@ -7,15 +7,17 @@
  ******************************************************************************/
 package sereneseasons.handler.season;
 
-import java.util.HashMap;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.gen.ChunkGeneratorOverworld;
+import net.minecraft.world.gen.ChunkProviderServer;
+import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.storage.MapStorage;
+import net.minecraftforge.event.world.ChunkEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.event.terraingen.PopulateChunkEvent;
 import net.minecraftforge.fml.common.eventhandler.Event;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -25,6 +27,7 @@ import sereneseasons.api.config.SeasonsOption;
 import sereneseasons.api.config.SyncedConfig;
 import sereneseasons.api.season.ISeasonState;
 import sereneseasons.api.season.Season;
+import sereneseasons.api.season.Season.SubSeason;
 import sereneseasons.api.season.SeasonHelper;
 import sereneseasons.config.SeasonsConfig;
 import sereneseasons.handler.PacketHandler;
@@ -32,6 +35,7 @@ import sereneseasons.network.message.MessageSyncSeasonCycle;
 import sereneseasons.season.SeasonASMHelper;
 import sereneseasons.season.SeasonSavedData;
 import sereneseasons.season.SeasonTime;
+import sereneseasons.season.journal.SeasonJournal;
 
 public class SeasonHandler implements SeasonHelper.ISeasonDataProvider
 {
@@ -42,65 +46,58 @@ public class SeasonHandler implements SeasonHelper.ISeasonDataProvider
 
         if (event.phase == TickEvent.Phase.END && !world.isRemote)
         {
-            if (!SyncedConfig.getBooleanValue(SeasonsOption.PROGRESS_SEASON_WHILE_OFFLINE))
-            {
-                MinecraftServer server = world.getMinecraftServer();
-                if (server != null && server.getPlayerList().getCurrentPlayerCount() == 0)
-                    return;
-            }
-                
             SeasonSavedData savedData = getSeasonSavedData(world);
+            Season season = SeasonHelper.getSeasonState(world).getSubSeason().getSeason();
 
             if (savedData.seasonCycleTicks++ > SeasonTime.ZERO.getCycleDuration())
             {
                 savedData.seasonCycleTicks = 0;
             }
-            
+
             if (savedData.seasonCycleTicks % 20 == 0)
             {
                 sendSeasonUpdate(world);
             }
 
+            SeasonJournal journal = savedData.getJournal();
+            journal.updateJournal(world, season);
+
             savedData.markDirty();
         }
     }
-    
+
     @SubscribeEvent
     public void onPlayerLogin(PlayerLoggedInEvent event)
     {
         EntityPlayer player = event.player;
         World world = player.world;
-        
+
         sendSeasonUpdate(world);
     }
 
-    private Season.SubSeason lastSeason = null;
-    public static final HashMap<Integer, Integer> clientSeasonCycleTicks = new HashMap<>();
-    public static SeasonTime getClientSeasonTime() {
-        Integer i = clientSeasonCycleTicks.get(0);
-    	return new SeasonTime(i == null ? 0 : i);
-    }
-    
+    private SubSeason lastSeason = null;
+    public static int clientSeasonCycleTicks = 0;
+
     @SubscribeEvent
-    public void onClientTick(TickEvent.ClientTickEvent event) 
+    public void onClientTick(TickEvent.ClientTickEvent event)
     {
-        //Only do this when in the world
-        if (Minecraft.getMinecraft().player == null) return;
-        
+        // Only do this when in the world
+        if (Minecraft.getMinecraft().player == null)
+            return;
+
         int dimension = Minecraft.getMinecraft().player.dimension;
 
         if (event.phase == TickEvent.Phase.END && SeasonsConfig.isDimensionWhitelisted(dimension))
         {
-            clientSeasonCycleTicks.compute(dimension, (k, v) -> v == null ? 0 : v + 1);
-        	
-            //Keep ticking as we're synchronized with the server only every second
-            if (clientSeasonCycleTicks.get(dimension) > SeasonTime.ZERO.getCycleDuration())
+            // Keep ticking as we're synchronized with the server only every
+            // second
+            if (clientSeasonCycleTicks++ > SeasonTime.ZERO.getCycleDuration())
             {
-                clientSeasonCycleTicks.put(dimension, 0);
+                clientSeasonCycleTicks = 0;
             }
-            
-            SeasonTime calendar = new SeasonTime(clientSeasonCycleTicks.get(dimension));
-            
+
+            SeasonTime calendar = new SeasonTime(clientSeasonCycleTicks);
+
             if (calendar.getSubSeason() != lastSeason)
             {
                 Minecraft.getMinecraft().renderGlobal.loadRenderers();
@@ -140,19 +137,19 @@ public class SeasonHandler implements SeasonHelper.ISeasonDataProvider
     
     public static void sendSeasonUpdate(World world)
     {
-        if (!world.isRemote)
+        if (!world.isRemote )
         {
             SeasonSavedData savedData = getSeasonSavedData(world);
             PacketHandler.instance.sendToAll(new MessageSyncSeasonCycle(world.provider.getDimension(), savedData.seasonCycleTicks));
         }
     }
-    
+
     public static SeasonSavedData getSeasonSavedData(World world)
     {
         MapStorage mapStorage = world.getPerWorldStorage();
-        SeasonSavedData savedData = (SeasonSavedData)mapStorage.getOrLoadData(SeasonSavedData.class, SeasonSavedData.DATA_IDENTIFIER);
+        SeasonSavedData savedData = (SeasonSavedData) mapStorage.getOrLoadData(SeasonSavedData.class, SeasonSavedData.DATA_IDENTIFIER);
 
-        //If the saved data file hasn't been created before, create it
+        // If the saved data file hasn't been created before, create it
         if (savedData == null)
         {
             savedData = new SeasonSavedData(SeasonSavedData.DATA_IDENTIFIER);
@@ -169,25 +166,24 @@ public class SeasonHandler implements SeasonHelper.ISeasonDataProvider
             }
             
             mapStorage.setData(SeasonSavedData.DATA_IDENTIFIER, savedData);
-            savedData.markDirty(); //Mark for saving
+            savedData.markDirty(); // Mark for saving
         }
-        
+
         return savedData;
     }
-    
+
     //
-    // Used to implement getSeasonState in the API
+    // Used to implement getSeasonData in the API
     //
-    
+
     public ISeasonState getServerSeasonState(World world)
     {
         SeasonSavedData savedData = getSeasonSavedData(world);
         return new SeasonTime(savedData.seasonCycleTicks);
     }
-    
+
     public ISeasonState getClientSeasonState()
     {
-        Integer i = clientSeasonCycleTicks.get(0);
-    	return new SeasonTime(i == null ? 0 : i);
+        return new SeasonTime(clientSeasonCycleTicks);
     }
 }

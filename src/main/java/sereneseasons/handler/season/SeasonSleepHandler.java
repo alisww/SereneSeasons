@@ -12,25 +12,32 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent.Phase;
 import net.minecraftforge.fml.relauncher.Side;
-import sereneseasons.api.config.SeasonsOption;
-import sereneseasons.api.config.SyncedConfig;
+import sereneseasons.api.season.Season;
+import sereneseasons.api.season.SeasonHelper;
 import sereneseasons.season.SeasonSavedData;
+import sereneseasons.season.journal.SeasonJournal;
 
-public class SeasonSleepHandler 
+public class SeasonSleepHandler
 {
     @SubscribeEvent
     public void onWorldTick(TickEvent.WorldTickEvent event)
     {
-        if (event.phase == Phase.START && event.side == Side.SERVER)
+        if (event.phase == Phase.START && event.side == Side.SERVER )
         {
-            WorldServer world = (WorldServer)event.world;
+            WorldServer world = (WorldServer) event.world;
 
-            //Called before all players are awoken for the next day
+            // Called before all players are awoken for the next day
             if (world.areAllPlayersAsleep())
             {
                 SeasonSavedData seasonData = SeasonHandler.getSeasonSavedData(world);
+                Season season = SeasonHelper.getSeasonState(world).getSubSeason().getSeason();
+
                 long timeDiff = 24000L - ((world.getWorldInfo().getWorldTime() + 24000L) % 24000L);
                 seasonData.seasonCycleTicks += timeDiff;
+                
+                SeasonJournal journal = seasonData.getJournal();
+                journal.updateJournal(world, season);
+
                 seasonData.markDirty();
                 SeasonHandler.sendSeasonUpdate(world);
             }
