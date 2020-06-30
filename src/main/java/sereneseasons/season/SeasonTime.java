@@ -12,6 +12,7 @@ import sereneseasons.api.config.SeasonsOption;
 import sereneseasons.api.config.SyncedConfig;
 import sereneseasons.api.season.ISeasonState;
 import sereneseasons.api.season.Season;
+import sereneseasons.api.season.Season.SubSeason;
 
 public final class SeasonTime implements ISeasonState
 {
@@ -22,6 +23,11 @@ public final class SeasonTime implements ISeasonState
     {
         Preconditions.checkArgument(time >= 0, "Time cannot be negative!");
         this.time = time;
+    }
+    
+    public SeasonTime(SubSeason firstDayOfSubSeason)
+    {
+        this.time = firstDayOfSubSeason.ordinal() * getSubSeasonDuration();;
     }
 
     @Override
@@ -45,7 +51,7 @@ public final class SeasonTime implements ISeasonState
     @Override
     public int getCycleDuration()
     {
-        return getSubSeasonDuration() * Season.SubSeason.VALUES.length;
+        return getSubSeasonDuration() * Season.SubSeason.values().length;
     }
     
     @Override
@@ -63,8 +69,8 @@ public final class SeasonTime implements ISeasonState
     @Override
     public Season.SubSeason getSubSeason()
     {
-        int index = (this.time / getSubSeasonDuration()) % Season.SubSeason.VALUES.length;
-        return Season.SubSeason.VALUES[index];
+        int index = (this.time / getSubSeasonDuration()) % Season.SubSeason.values().length;
+        return Season.SubSeason.values()[index];
     }
 
     @Override
@@ -76,7 +82,7 @@ public final class SeasonTime implements ISeasonState
     @Override
     public Season.TropicalSeason getTropicalSeason()
     {
-        int index = ((((this.time / getSubSeasonDuration()) + 11) / 2) + 5) % Season.TropicalSeason.VALUES.length;
-        return Season.TropicalSeason.VALUES[index];
+        int index = ((((this.time / getSubSeasonDuration()) + 11) / 2) + 5) % Season.TropicalSeason.values().length;
+        return Season.TropicalSeason.values()[index];
     }
 }

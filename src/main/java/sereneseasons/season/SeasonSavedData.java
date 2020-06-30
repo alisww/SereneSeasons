@@ -9,35 +9,51 @@ package sereneseasons.season;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.storage.WorldSavedData;
+import sereneseasons.season.journal.SeasonJournal;
 
 public class SeasonSavedData extends WorldSavedData
 {
     public static final String DATA_IDENTIFIER = "seasons";
-    
+
     public int seasonCycleTicks;
     
+    public SeasonJournal journal = new SeasonJournal();
+
     public SeasonSavedData()
     {
         this(DATA_IDENTIFIER);
     }
-    
-    //This specific constructor is required for saving to occur
+
+    // This specific constructor is required for saving to occur
     public SeasonSavedData(String identifier)
     {
         super(identifier);
     }
 
     @Override
-    public void readFromNBT(NBTTagCompound nbt) 
+    public void readFromNBT(NBTTagCompound nbt)
     {
         this.seasonCycleTicks = nbt.getInteger("SeasonCycleTicks");
+
+        this.journal = new SeasonJournal();
+        this.journal.deserializeNBT(nbt.getCompoundTag("Journal"));
     }
 
     @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound nbt) 
+    public NBTTagCompound writeToNBT(NBTTagCompound nbt)
     {
-        nbt.setInteger("SeasonCycleTicks", this.seasonCycleTicks);
-        
+    	nbt.setInteger("SeasonCycleTicks", this.seasonCycleTicks);
+    	nbt.setTag("Journal", this.journal.serializeNBT());
+
         return nbt;
+    }
+    
+    /**
+     * Returns the journal.
+     * 
+     * @return the journal.
+     */
+    public SeasonJournal getJournal() {
+    	return this.journal;
     }
 }
